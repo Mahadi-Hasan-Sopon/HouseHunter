@@ -3,13 +3,21 @@ const { MongoClient, ServerApiVersion } = require("mongodb");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
-const { hashPassword } = require("./utils/utils");
+const { hashPassword, generateToken } = require("./utils/utils");
 require("dotenv").config();
 
 const app = express();
 
 app.use(express.json());
-app.use(cors());
+app.use(cookieParser());
+app.use(
+  cors({
+    origin: ["http://localhost:8000"],
+    credentials: true,
+    optionsSuccessStatus: 200,
+    methods: ["GET, HEAD, PUT, PATCH, POST, DELETE, OPTIONS"],
+  })
+);
 
 const PORT = process.env.PORT || 8000;
 
@@ -55,7 +63,16 @@ async function run() {
         const newUser = { ...user, password: hashedPassword };
         const result = await userCollection.insertOne(newUser);
 
-        res.send(result);
+        const token = await generateToken({
+          ...newUser,
+          _id: result.insertedId,
+        });
+        res.cookie("authToken", token, {
+          httpOnly: true,
+          sameSite: "none",
+          secure: true,
+        });
+        res.send({ message: "User created successfully" });
       }
     });
 
