@@ -3,6 +3,7 @@ const { MongoClient, ServerApiVersion } = require("mongodb");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
+const { hashPassword } = require("./utils/utils");
 require("dotenv").config();
 
 const app = express();
@@ -33,7 +34,6 @@ async function run() {
 
     // Collections
     const userCollection = database.collection("users");
-    const roomCollection = database.collection("rooms");
 
     // Routes
     app.get("/", (req, res) => {
@@ -42,6 +42,21 @@ async function run() {
           PORT +
           " </center></h1>"
       );
+    });
+
+    app.post("/signup", async (req, res) => {
+      const user = req.body;
+      const isExist = await userCollection.findOne({ email: user.email });
+      if (isExist) {
+        return res.send({ message: "User already exists" });
+      } else {
+        const hashedPassword = await hashPassword(user.password);
+
+        const newUser = { ...user, password: hashedPassword };
+        const result = await userCollection.insertOne(newUser);
+
+        res.send(result);
+      }
     });
 
     // Send a ping to confirm a successful connection
